@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>経費立替管理 | 匡電気管理事務所</title>
+<style>
+  /* ─── Design tokens ─── */
+  :root {
+    --bg:        #F7F8FA;
+    --surface:   #FFFFFF;
+    --border:    #E2E6EA;
+    --primary:   #1A56DB;
+    --primary-h: #1441B0;
+    --danger:    #C81E1E;
+    --success:   #057A55;
+    --warn:      #B45309;
+    --text:      #111928;
+    --muted:     #6B7280;
+    --radius:    8px;
+    --shadow:    0 1px 4px rgba(0,0,0,.08);
+    --font:      'Hiragino Sans', 'Meiryo', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ─── Header ─── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: -.3px;
+  }
+  .logo span { color: var(--text); font-weight: 400; }
+  #userInfo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  #btnLogout {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--muted);
+  }
+  #btnLogout:hover { background: var(--bg); }
+
+  /* ─── Tabs ─── */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+  }
+  .tab {
+    padding: 12px 18px;
+    font-size: 13px;
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color .15s;
+  }
+  .tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    font-weight: 600;
+  }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  /* ─── Main ─── */
+  main {
+    max-width: 900px;
+    margin: 24px auto;
+    padding: 0 16px;
+  }
+
+  /* ─── Card ─── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: var(--text);
+  }
+
+  /* ─── Login ─── */
+  #loginWrap {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #EBF0FF 0%, #F7F8FA 100%);
+  }
+  .loginCard {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0,0,0,.10);
+    padding: 40px 36px;
+    width: 360px;
+  }
+  .loginCard h1 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 4px;
+  }
+  .loginCard p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 28px;
+  }
+
+  /* ─── Form ─── */
+  .formRow { margin-bottom: 14px; }
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+  input, select, textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: var(--font);
+    color: var(--text);
+    background: var(--surface);
+    transition: border-color .15s;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(26,86,219,.1);
+  }
+  textarea { resize: vertical; min-height: 72px; }
+
+  /* ─── Buttons ─── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 18px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: background .15s, opacity .15s;
+  }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--primary-h); }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-success:hover:not(:disabled) { background: #046c4e; }
+  .btn-danger  { background: var(--danger);  color: #fff; }
+  .btn-danger:hover:not(:disabled)  { background: #9b1c1c; }
+  .btn-outline { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+  .btn-outline:hover:not(:disabled) { background: var(--bg); }
+  .btn-warn    { background: var(--warn); color: #fff; }
+  .btn-warn:hover:not(:disabled) { background: #92400e; }
+  .btn-block { width: 100%; justify-content: center; }
+
+  /* ─── Badge / Status ─── */
+  .badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .badge-申請中  { background: #FEF3C7; color: #92400E; }
+  .badge-承認済み { background: #D1FAE5; color: #065F46; }
+  .badge-却下    { background: #FEE2E2; color: #991B1B; }
+  .badge-未精算  { background: #FEF3C7; color: #92400E; }
+  .badge-精算済み { background: #D1FAE5; color: #065F46; }
+
+  /* ─── Table ─── */
+  .tableWrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    background: var(--bg);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 12px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #F9FAFB; }
+  .amount { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* ─── Summary bar ─── */
+  .summaryBar {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .summaryItem {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 20px;
+    flex: 1;
+    min-width: 130px;
+  }
+  .summaryItem .label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
+  .summaryItem .value { font-size: 22px; font-weight: 700; margin-top: 4px; }
+  .summaryItem .value.blue   { color: var(--primary); }
+  .summaryItem .value.green  { color: var(--success); }
+  .summaryItem .value.orange { color: var(--warn); }
+
+  /* ─── Alert ─── */
+  .alert {
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+  .alert-error   { background: #FEE2E2; color: var(--danger); }
+  .alert-success { background: #D1FAE5; color: var(--success); }
+  .alert-info    { background: #EBF5FF; color: var(--primary); }
+
+  /* ─── Empty ─── */
+  .empty {
+    text-align: center;
+    padding: 48px 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .empty svg { display: block; margin: 0 auto 12px; opacity: .4; }
+
+  /* ─── Util ─── */
+  .hidden { display: none !important; }
+  .flex   { display: flex; align-items: center; gap: 8px; }
+  .mt8    { margin-top: 8px; }
+  .mt16   { margin-top: 16px; }
+  .muted  { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- ========== ログイン画面 ========== -->
+<div id="loginWrap">
+  <div class="loginCard">
+    <h1>経費立替管理</h1>
+    <p>匡電気管理事務所</p>
+    <div id="loginError" class="alert alert-error hidden"></div>
+    <div class="formRow">
+      <label>アカウント名</label>
+      <input type="text" id="loginUser" placeholder="アカウント名" autocomplete="username">
+    </div>
+    <div class="formRow">
+      <label>パスワード</label>
+      <input type="password" id="loginPass" placeholder="パスワード" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary btn-block mt16" id="btnLogin" onclick="doLogin()">ログイン</button>
+  </div>
+</div>
+
+<!-- ========== アプリ本体 ========== -->
+<div id="appWrap" class="hidden">
+  <header>
+    <div class="logo">経費立替管理 <span>| 匡電気管理事務所</span></div>
+    <div id="userInfo">
+      <span id="headerUsername"></span>
+      <button id="btnLogout" onclick="logout()">ログアウト</button>
+    </div>
+  </header>
+
+  <div class="tabs" id="tabBar">
+    <button class="tab active" onclick="switchTab('my')"    id="tab-my">自分の申請</button>
+    <button class="tab"        onclick="switchTab('apply')" id="tab-apply">新規申請</button>
+    <button class="tab hidden" onclick="switchTab('admin')" id="tab-admin">管理者画面</button>
+  </div>
+
+  <main>
+    <!-- ── 自分の申請 ── -->
+    <div id="page-my">
+      <div class="summaryBar" id="mySummaryBar"></div>
+      <div class="card">
+        <h2>申請履歴</h2>
+        <div id="myAlert" class="hidden"></div>
+        <div class="tableWrap">
+          <table id="myTable">
+            <thead>
+              <tr>
+                <th>発生日</th>
+                <th>項目</th>
+                <th>備考</th>
+                <th>金額</th>
+                <th>ステータス</th>
+                <th>精算</th>
+              </tr>
+            </thead>
+            <tbody id="myBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 新規申請 ── -->
+    <div id="page-apply" class="hidden">
+      <div class="card" style="max-width:480px; margin:0 auto;">
+        <h2>新規申請</h2>
+        <div id="applyAlert" class="hidden"></div>
+        <div class="formRow">
+          <label>発生日 <span style="color:var(--danger)">*</span></label>
+          <input type="date" id="expDate">
+        </div>
+        <div class="formRow">
+          <label>項目 <span style="color:var(--danger)">*</span></label>
+          <select id="expCategory">
+            <option value="">選択してください</option>
+            <option>交通費</option>
+            <option>宿泊費</option>
+            <option>通信費</option>
+            <option>消耗品・工具</option>
+            <option>外注費</option>
+            <option>接待・会議費</option>
+            <option>その他</option>
+          </select>
+        </div>
+        <div class="formRow">
+          <label>金額 (円) <span style="color:var(--danger)">*</span></label>
+          <input type="number" id="expAmount" placeholder="0" min="1">
+        </div>
+        <div class="formRow">
+          <label>備考</label>
+          <textarea id="expNote" placeholder="購入先・用途など"></textarea>
+        </div>
+        <button class="btn btn-primary btn-block mt16" onclick="submitExpense()">申請する</button>
+      </div>
+    </div>
+
+    <!-- ── 管理者画面 ── -->
+    <div id="page-admin" class="hidden">
+      <div class="summaryBar" id="adminSummaryBar"></div>
+      <div class="card">
+        <div class="flex" style="justify-content:space-between; margin-bottom:16px;">
+          <h2 style="margin:0">全申請一覧</h2>
+          <div class="flex">
+            <select id="adminFilter" onchange="renderAdminTable()" style="width:auto; font-size:12px; padding:6px 10px;">
+              <option value="">すべて</option>
+              <option value="申請中">申請中のみ</option>
+              <option value="承認済み">承認済みのみ</option>
+              <option value="却下">却下のみ</option>
+            </select>
+            <button class="btn btn-outline" style="font-size:12px; padding:6px 12px;" onclick="downloadCSV()">CSV出力</button>
+          </div>
+        </div>
+        <div id="adminAlert" class="hidden"></div>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>申請日</th>
+                <th>申請者</th>
+                <th>発生日</th>
+                <th>項目</th>
+                <th>備考</th>
+                <th>金額</th>
+                <th>ステータス</th>
+                <th>精算</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="adminBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ============================================================
+// 設定（デプロイ後に GAS の Web App URL を貼ってください）
+// ============================================================
+const GAS_URL = 'YOUR_GAS_WEBAPP_URL';
+
+// ─── State ───
+let currentUser = null;
+let isAdmin = false;
+let allExpenses = [];
+let myExpenses  = [];
+
+// ============================================================
+// ログイン
+// ============================================================
+async function doLogin() {
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value.trim();
+  const btn  = document.getElementById('btnLogin');
+  const err  = document.getElementById('loginError');
+
+  if (!user || !pass) { showEl(err, 'アカウント名とパスワードを入力してください', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'ログイン中...';
+  err.classList.add('hidden');
+
+  try {
+    const res = await gasGet({ action: 'login', username: user, password: pass });
+    if (res.success) {
+      currentUser = res.username;
+      isAdmin     = res.isAdmin;
+      document.getElementById('loginWrap').classList.add('hidden');
+      document.getElementById('appWrap').classList.remove('hidden');
+      document.getElementById('headerUsername').textContent = currentUser + (isAdmin ? '（管理者）' : '');
+      if (isAdmin) document.getElementById('tab-admin').classList.remove('hidden');
+      switchTab('my');
+      loadMyExpenses();
+    } else {
+      showEl(err, res.error || 'ログインに失敗しました', 'error');
+    }
+  } catch(e) {
+    showEl(err, '通信エラーが発生しました', 'error');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'ログイン';
+}
+
+document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('loginUser').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+function logout() {
+  currentUser = null; isAdmin = false;
+  allExpenses = []; myExpenses = [];
+  document.getElementById('appWrap').classList.add('hidden');
+  document.getElementById('loginWrap').classList.remove('hidden');
+  document.getElementById('loginPass').value = '';
+}
+
+// ============================================================
+// タブ切り替え
+// ============================================================
+function switchTab(name) {
+  ['my','apply','admin'].forEach(t => {
+    document.getElementById('page-' + t).classList.add('hidden');
+    document.getElementById('tab-'  + t)?.classList.remove('active');
+  });
+  document.getElementById('page-' + name).classList.remove('hidden');
+  document.getElementById('tab-'  + name)?.classList.add('active');
+
+  if (name === 'admin' && isAdmin) loadAllExpenses();
+}
+
+// ============================================================
+// 自分の申請一覧
+// ============================================================
+async function loadMyExpenses() {
+  try {
+    const res = await gasGet({ action: 'getMyExpenses', username: currentUser });
+    if (res.success) {
+      myExpenses = res.data || [];
+      renderMyTable();
+    }
+  } catch(e) { console.error(e); }
+}
+
+function renderMyTable() {
+  const tbody = document.getElementById('myBody');
+  const total    = myExpenses.reduce((s, r) => s + Number(r['金額'] || 0), 0);
+  const pending  = myExpenses.filter(r => r['精算状況'] === '未精算').reduce((s, r) => s + Number(r['金額'] || 0), 0);
+  const settled  = myExpenses.filter(r => r['精算状況'] === '精算済み').reduce((s, r) => s + Number(r['金額'] || 0), 0);
+
+  document.getElementById('mySummaryBar').innerHTML = `
+    <div class="summaryItem"><div class="label">合計申請額</div><div class="value blue">¥${fmt(total)}</div></div>
+    <div class="summaryItem"><div class="label">未精算</div><div class="value orange">¥${fmt(pending)}</div></div>
+    <div class="summaryItem"><div class="label">精算済み</div><div class="value green">¥${fmt(settled)}</div></div>
+    <div class="summaryItem"><div class="label">申請件数</div><div class="value">${myExpenses.length}件</div></div>
+  `;
+
+  if (myExpenses.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty">申請はありません</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = [...myExpenses].reverse().map(r => `
+    <tr>
+      <td>${r['発生日']}</td>
+      <td>${r['項目']}</td>
+      <td class="muted" style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r['備考']}</td>
+      <td class="amount">¥${fmt(r['金額'])}</td>
+      <td><span class="badge badge-${r['ステータス']}">${r['ステータス']}</span></td>
+      <td><span class="badge badge-${r['精算状況']}">${r['精算状況']}</span></td>
+    </tr>
+  `).join('');
+}
+
+// ============================================================
+// 新規申請
+// ============================================================
+async function submitExpense() {
+  const date     = document.getElementById('expDate').value;
+  const category = document.getElementById('expCategory').value;
+  const amount   = document.getElementById('expAmount').value;
+  const note     = document.getElementById('expNote').value;
+  const alertEl  = document.getElementById('applyAlert');
+
+  if (!date || !category || !amount) {
+    showEl(alertEl, '発生日・項目・金額は必須です', 'error'); return;
+  }
+  if (Number(amount) <= 0) {
+    showEl(alertEl, '金額は1円以上で入力してください', 'error'); return;
+  }
+
+  alertEl.classList.add('hidden');
+
+  try {
+    const res = await gasGet({ action: 'addExpense', username: currentUser, date, amount, category, note });
+    if (res.success) {
+      showEl(alertEl, '申請しました（ID: ' + res.id + '）', 'success');
+      document.getElementById('expDate').value = '';
+      document.getElementById('expCategory').value = '';
+      document.getElementById('expAmount').value = '';
+      document.getElementById('expNote').value = '';
+      loadMyExpenses();
+    } else {
+      showEl(alertEl, res.error || '申請に失敗しました', 'error');
+    }
+  } catch(e) {
+    showEl(alertEl, '通信エラーが発生しました', 'error');
+  }
+}
+
+// ============================================================
+// 管理者：全申請
+// ============================================================
+async function loadAllExpenses() {
+  try {
+    const res = await gasGet({ action: 'getExpenses', username: currentUser, isAdmin: isAdmin ? 'true' : 'false' });
+    if (res.success) {
+      allExpenses = res.data || [];
+      renderAdminTable();
+    }
+  } catch(e) { console.error(e); }
+}
+
+function renderAdminTable() {
+  const filter = document.getElementById('adminFilter').value;
+  const list   = filter ? allExpenses.filter(r => r['ステータス'] === filter) : allExpenses;
+
+  const total   = allExpenses.reduce((s, r) => s + Number(r['金額'] || 0), 0);
+  const pending = allExpenses.filter(r => r['ステータス'] === '申請中').reduce((s, r) => s + Number(r['金額'] || 0), 0);
+  const unsettled = allExpenses.filter(r => r['精算状況'] === '未精算' && r['ステータス'] === '承認済み').reduce((s, r) => s + Number(r['金額'] || 0), 0);
+
+  document.getElementById('adminSummaryBar').innerHTML = `
+    <div class="summaryItem"><div class="label">総申請額</div><div class="value blue">¥${fmt(total)}</div></div>
+    <div class="summaryItem"><div class="label">承認待ち</div><div class="value orange">¥${fmt(pending)}</div></div>
+    <div class="summaryItem"><div class="label">精算待ち（承認済）</div><div class="value orange">¥${fmt(unsettled)}</div></div>
+    <div class="summaryItem"><div class="label">申請件数</div><div class="value">${allExpenses.length}件</div></div>
+  `;
+
+  const tbody = document.getElementById('adminBody');
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty">データがありません</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = [...list].reverse().map(r => {
+    const actions = [];
+    if (r['ステータス'] === '申請中') {
+      actions.push(`<button class="btn btn-success" style="font-size:11px;padding:4px 10px;" onclick="updateStatus('${r['ID']}','approve')">承認</button>`);
+      actions.push(`<button class="btn btn-danger"  style="font-size:11px;padding:4px 10px;" onclick="updateStatus('${r['ID']}','reject')">却下</button>`);
+    }
+    if (r['ステータス'] === '承認済み' && r['精算状況'] === '未精算') {
+      actions.push(`<button class="btn btn-warn" style="font-size:11px;padding:4px 10px;" onclick="updateStatus('${r['ID']}','settle')">精算済み</button>`);
+    }
+    return `
+      <tr>
+        <td class="muted">${r['申請日']}</td>
+        <td><strong>${r['申請者']}</strong></td>
+        <td>${r['発生日']}</td>
+        <td>${r['項目']}</td>
+        <td class="muted" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r['備考']}</td>
+        <td class="amount">¥${fmt(r['金額'])}</td>
+        <td><span class="badge badge-${r['ステータス']}">${r['ステータス']}</span></td>
+        <td><span class="badge badge-${r['精算状況']}">${r['精算状況']}</span></td>
+        <td><div class="flex" style="gap:4px;">${actions.join('')}</div></td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function updateStatus(id, action) {
+  const alertEl = document.getElementById('adminAlert');
+  try {
+    const res = await gasGet({ action: 'updateStatus', username: currentUser, isAdmin: 'true', id, action });
+    if (res.success) {
+      showEl(alertEl, '更新しました', 'success');
+      loadAllExpenses();
+      setTimeout(() => alertEl.classList.add('hidden'), 3000);
+    } else {
+      showEl(alertEl, res.error || '更新に失敗しました', 'error');
+    }
+  } catch(e) {
+    showEl(alertEl, '通信エラーが発生しました', 'error');
+  }
+}
+
+// ============================================================
+// CSV 出力
+// ============================================================
+function downloadCSV() {
+  if (allExpenses.length === 0) return;
+  const headers = ['ID','申請者','申請日','発生日','金額','項目','備考','ステータス','承認者','承認日','精算状況','精算日'];
+  const rows = allExpenses.map(r => headers.map(h => `"${(r[h] || '').replace(/"/g, '""')}"`).join(','));
+  const csv  = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = '経費立替_' + today() + '.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// ユーティリティ
+// ============================================================
+async function gasGet(params) {
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch(GAS_URL + '?' + qs);
+  return res.json();
+}
+
+function showEl(el, msg, type) {
+  el.textContent = msg;
+  el.className   = 'alert alert-' + type;
+}
+
+function fmt(n)    { return Number(n).toLocaleString('ja-JP'); }
+function today()   { return new Date().toISOString().slice(0, 10).replace(/-/g,''); }
+</script>
+</body>
+</html>
