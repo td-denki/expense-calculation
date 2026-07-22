@@ -216,6 +216,7 @@
     <button class="tab active" onclick="switchTab('my')"    id="tab-my">自分の申請</button>
     <button class="tab"        onclick="switchTab('apply')" id="tab-apply">新規申請</button>
     <button class="tab hidden" onclick="switchTab('admin')" id="tab-admin">管理者画面</button>
+    <button class="tab"        onclick="switchTab('manual')" id="tab-manual">マニュアル</button>
   </div>
 
   <main>
@@ -249,8 +250,8 @@
           <label>項目 <span style="color:var(--danger)">*</span></label>
           <select id="expCategory">
             <option value="">選択してください</option>
-            <option>交通費</option><option>宿泊費</option><option>通信費</option>
-            <option>消耗品・工具</option><option>外注費</option><option>接待・会議費</option><option>その他</option>
+            <option>交通費</option><option>宿泊費</option>
+            <option>消耗品・工具</option><option>接待・会議費</option><option>その他</option>
           </select>
         </div>
         <div class="formRow">
@@ -290,6 +291,18 @@
             </tr></thead>
             <tbody id="adminBody"></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+    <!-- マニュアル -->
+    <div id="page-manual" class="hidden">
+      <div class="card">
+        <div class="flex" style="justify-content:space-between;margin-bottom:16px">
+          <h2 style="margin:0">取扱マニュアル</h2>
+          <a id="btnDownloadPdf" class="btn btn-primary" style="font-size:12px;padding:6px 14px;text-decoration:none" download="経費立替管理アプリ_取扱マニュアル.pdf">PDFダウンロード</a>
+        </div>
+        <div style="border:1px solid var(--border);border-radius:6px;overflow:hidden;background:#555;">
+          <iframe id="manualFrame" style="width:100%;height:80vh;border:none;" title="取扱マニュアル"></iframe>
         </div>
       </div>
     </div>
@@ -368,13 +381,18 @@ async function doResetPass() {
 
 // ── タブ ──
 function switchTab(name) {
-  ['my','apply','admin'].forEach(t => {
+  ['my','apply','admin','manual'].forEach(t => {
     document.getElementById('page-'+t).classList.add('hidden');
     document.getElementById('tab-'+t)?.classList.remove('active');
   });
   document.getElementById('page-'+name).classList.remove('hidden');
   document.getElementById('tab-'+name)?.classList.add('active');
   if (name==='admin' && isAdmin) loadAllExpenses();
+  if (name==='manual') {
+    const frame = document.getElementById('manualFrame');
+    if (!frame.src || frame.src === 'about:blank') frame.src = MANUAL_PDF;
+    document.getElementById('btnDownloadPdf').href = MANUAL_PDF;
+  }
 }
 
 // ── 自分の申請 ──
@@ -511,7 +529,8 @@ async function gasGet(params) {
   return new Promise((resolve,reject) => {
     const cbName='cb_'+Math.random().toString(36).slice(2);
     params.callback=cbName;
-    const qs=new URLSearchParams(params).toString();
+    // マルチバイト文字を確実にエンコード
+    const qs=Object.keys(params).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(params[k])).join('&');
     const script=document.createElement('script');
     const timer=setTimeout(()=>{
       delete window[cbName];
