@@ -326,11 +326,11 @@ function renderAdminTable(){
   tbody.innerHTML=[].concat(list).reverse().map(function(r){
     var acts=[];
     if(r["ステータス"]==="申請中"){
-      acts.push('<button class="btn btn-success" style="font-size:11px;padding:4px 10px" onclick="updateStatus(''+r["ID"]+'','approve')">承認</button>');
-      acts.push('<button class="btn btn-danger" style="font-size:11px;padding:4px 10px" onclick="updateStatus(''+r["ID"]+'','reject')">却下</button>');
+      acts.push('<button class="btn btn-success" style="font-size:11px;padding:4px 10px" onclick="updateStatus(&quot;'+r["ID"]+'&quot;,&quot;approve&quot;)">承認</button>');
+      acts.push('<button class="btn btn-danger" style="font-size:11px;padding:4px 10px" onclick="updateStatus(&quot;'+r["ID"]+'&quot;,&quot;reject&quot;)">却下</button>');
     }
     if(r["ステータス"]==="承認済み"&&r["精算状況"]==="未精算")
-      acts.push('<button class="btn btn-warn" style="font-size:11px;padding:4px 10px" onclick="updateStatus(''+r["ID"]+'','settle')">精算済み</button>');
+      acts.push('<button class="btn btn-warn" style="font-size:11px;padding:4px 10px" onclick="updateStatus(&quot;'+r["ID"]+'&quot;,&quot;settle&quot;)">精算済み</button>');
     return '<tr>'
       +'<td class="muted">'+r["申請日"]+'</td><td><strong>'+r["申請者"]+'</strong></td>'
       +'<td>'+r["発生日"]+'</td><td>'+r["項目"]+'</td>'
@@ -356,9 +356,7 @@ function downloadCSV(){
   if(!allExpenses.length)return;
   var headers=["ID","申請者","申請日","発生日","金額","項目","購入先","用途","備考","ステータス","承認者","承認日","精算状況","精算日"];
   var rows=allExpenses.map(function(r){return headers.map(function(h){return '"'+String(r[h]||"").replace(/"/g,'""')+'"';}).join(",");});
-  var csv="﻿"+headers.join(",")+"
-"+rows.join("
-");
+  var csv=String.fromCharCode(65279)+headers.join(",")+String.fromCharCode(10)+rows.join(String.fromCharCode(10));
   var blob=new Blob([csv],{type:"text/csv"});
   var url=URL.createObjectURL(blob);
   var a=document.createElement("a");
