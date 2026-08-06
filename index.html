@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>経費立替管理 | 匡電気管理事務所</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
 :root{--bg:#F7F8FA;--surface:#FFFFFF;--border:#E2E6EA;--primary:#3333AA;--primary-h:#22228A;--danger:#C81E1E;--success:#057A55;--warn:#B45309;--text:#111928;--muted:#6B7280;--radius:8px;--font:"Hiragino Sans","Meiryo",sans-serif}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -85,6 +86,12 @@ tr:hover td{background:#F9FAFB}
 <div class="formRow"><label>アカウント名</label><input type="text" id="loginUser" placeholder="氏名" autocomplete="username" autocorrect="off" autocapitalize="off" spellcheck="false"></div>
 <div class="formRow"><label>パスワード</label><input type="password" id="loginPass" placeholder="パスワード" autocomplete="current-password"></div>
 <button class="btn btn-primary btn-block mt16" id="btnLogin" onclick="doLogin()">ログイン</button>
+<div style="display:flex;align-items:center;gap:10px;margin:14px 0 0">
+<div style="flex:1;height:1px;background:var(--border)"></div>
+<span style="font-size:11px;color:var(--muted)">または</span>
+<div style="flex:1;height:1px;background:var(--border)"></div>
+</div>
+<button class="btn btn-block" id="btnLineLogin" onclick="doLineLogin()" style="background:#06C755;color:#fff;margin-top:14px">LINEでログイン</button>
 <div class="loginLinks"><button class="btn-text" onclick="showModal('changePassModal')">パスワード変更</button><button class="btn-text" onclick="showModal('resetPassModal')">パスワードを忘れた方</button></div>
 </div></div>
 
@@ -167,7 +174,7 @@ tr:hover td{background:#F9FAFB}
 </div></div>
 <div id="adminAlert" class="hidden"></div>
 <div class="tableWrap"><table>
-<thead><tr><th>申請日</th><th>申請者</th><th>発生日</th><th>項目</th><th>購入先</th><th>用途</th><th>備考</th><th>金額</th><th>ステータス</th><th>精算</th><th>操作</th></tr></thead>
+<thead><tr><th>申請日</th><th>申請者</th><th>発生日</th><th>項目</th><th>購入先</th><th>用途</th><th>備考</th><th>金額</th><th>ステータス</th><th>精算</th><th>支払月</th><th>操作</th></tr></thead>
 <tbody id="adminBody"></tbody>
 </table></div></div></div>
 
@@ -184,7 +191,62 @@ tr:hover td{background:#F9FAFB}
 
 <script>
 var GAS_URL="https://script.google.com/macros/s/AKfycbyIahK65F28eUThDjopBB_HP-ufD9rbFwzN7Axie9HdXZO3IUj_OayyfvN05Ri5_-YyZA/exec";
+var LIFF_ID="YOUR_LIFF_ID"; // LINE DevelopersでこのアプリのLIFFを作成してIDを貼り付け
 var currentUser=null,isAdmin=false,allExpenses=[],myExpenses=[];
+var liffReady=false;
+
+// ── LIFF初期化（LINEアプリ内なら自動ログイン） ──
+(function initLiff(){
+  if(typeof liff==="undefined"||!LIFF_ID||LIFF_ID==="YOUR_LIFF_ID")return;
+  liff.init({liffId:LIFF_ID}).then(function(){
+    liffReady=true;
+    if(liff.isLoggedIn()){
+      lineAuth();
+    }
+  }).catch(function(e){console.error("LIFF init error",e);});
+})();
+
+function doLineLogin(){
+  var err=document.getElementById("loginError");
+  if(!liffReady){
+    showEl(err,"LINEログインの準備ができていません（LIFF未設定）","error");
+    return;
+  }
+  if(!liff.isLoggedIn()){
+    liff.login({redirectUri:location.href});
+    return;
+  }
+  lineAuth();
+}
+
+function lineAuth(){
+  var err=document.getElementById("loginError");
+  var btn=document.getElementById("btnLineLogin");
+  if(btn){btn.disabled=true;btn.textContent="LINE認証中...";}
+  liff.getProfile().then(function(profile){
+    return gasGet({action:"loginByLine",lineUserId:profile.userId});
+  }).then(function(res){
+    if(res.success){
+      enterApp(res.username,res.isAdmin);
+    }else{
+      showEl(err,res.error||"LINEログインに失敗しました","error");
+    }
+    if(btn){btn.disabled=false;btn.textContent="LINEでログイン";}
+  }).catch(function(e){
+    showEl(err,"LINE認証エラー: "+e.message,"error");
+    if(btn){btn.disabled=false;btn.textContent="LINEでログイン";}
+  });
+}
+
+// ── ログイン成功後の共通処理 ──
+function enterApp(username,admin){
+  currentUser=username;isAdmin=admin;
+  document.getElementById("loginWrap").classList.add("hidden");
+  document.getElementById("appWrap").classList.remove("hidden");
+  document.getElementById("headerUsername").textContent=currentUser+(isAdmin?"（管理者）":"");
+  if(isAdmin)document.getElementById("tab-admin").classList.remove("hidden");
+  switchTab("my");loadMyExpenses();
+}
 
 function getPDF(){return "data:application/pdf;base64,"+document.getElementById("pdfData").value;}
 
@@ -197,12 +259,7 @@ function doLogin(){
   btn.disabled=true;btn.textContent="ログイン中...";err.classList.add("hidden");
   gasGet({action:"login",username:user,password:pass}).then(function(res){
     if(res.success){
-      currentUser=res.username;isAdmin=res.isAdmin;
-      document.getElementById("loginWrap").classList.add("hidden");
-      document.getElementById("appWrap").classList.remove("hidden");
-      document.getElementById("headerUsername").textContent=currentUser+(isAdmin?"（管理者）":"");
-      if(isAdmin)document.getElementById("tab-admin").classList.remove("hidden");
-      switchTab("my");loadMyExpenses();
+      enterApp(res.username,res.isAdmin);
     }else{showEl(err,res.error||"ログインに失敗しました","error");}
     btn.disabled=false;btn.textContent="ログイン";
   }).catch(function(e){showEl(err,"通信エラー: "+e.message,"error");btn.disabled=false;btn.textContent="ログイン";});
@@ -322,7 +379,7 @@ function renderAdminTable(){
     +'<div class="summaryItem"><div class="label">精算待ち（承認済）</div><div class="value orange">¥'+fmt(unsettled)+'</div></div>'
     +'<div class="summaryItem"><div class="label">申請件数</div><div class="value">'+allExpenses.length+'件</div></div>';
   var tbody=document.getElementById("adminBody");
-  if(!list.length){tbody.innerHTML='<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--muted)">データがありません</td></tr>';return;}
+  if(!list.length){tbody.innerHTML='<tr><td colspan="12" style="text-align:center;padding:40px;color:var(--muted)">データがありません</td></tr>';return;}
   tbody.innerHTML=[].concat(list).reverse().map(function(r){
     var acts=[];
     if(r["ステータス"]==="申請中"){
@@ -331,6 +388,7 @@ function renderAdminTable(){
     }
     if(r["ステータス"]==="承認済み"&&r["精算状況"]==="未精算")
       acts.push('<button class="btn btn-warn" style="font-size:11px;padding:4px 10px" onclick="updateStatus(&quot;'+r["ID"]+'&quot;,&quot;settle&quot;)">精算済み</button>');
+    acts.push('<button class="btn btn-outline" style="font-size:11px;padding:4px 10px" onclick="editPayMonth(&quot;'+r["ID"]+'&quot;,&quot;'+(r["支払月"]||"")+'&quot;)">支払月</button>');
     return '<tr>'
       +'<td class="muted">'+r["申請日"]+'</td><td><strong>'+r["申請者"]+'</strong></td>'
       +'<td>'+r["発生日"]+'</td><td>'+r["項目"]+'</td>'
@@ -340,13 +398,36 @@ function renderAdminTable(){
       +'<td class="amount">¥'+fmt(r["金額"])+'</td>'
       +'<td><span class="badge badge-'+r["ステータス"]+'">'+r["ステータス"]+'</span></td>'
       +'<td><span class="badge badge-'+r["精算状況"]+'">'+r["精算状況"]+'</span></td>'
+      +'<td>'+(r["支払月"]||'<span class="muted">未設定</span>')+'</td>'
       +'<td><div class="flex" style="gap:4px">'+acts.join("")+'</div></td></tr>';
   }).join("");
 }
 
+// ── 支払月の入力・編集（管理者） ──
+function editPayMonth(id,current){
+  var input=prompt("支払月を入力してください（例：2026-08）",current||defaultPayMonth());
+  if(input===null)return; // キャンセル
+  var a=document.getElementById("adminAlert");
+  gasGet({action:"setPayMonth",username:currentUser,isAdmin:"true",id:id,payMonth:input.trim()}).then(function(res){
+    if(res.success){showEl(a,"支払月を更新しました","success");loadAllExpenses();setTimeout(function(){a.classList.add("hidden");},3000);}
+    else{showEl(a,res.error||"更新に失敗しました","error");}
+  }).catch(function(){showEl(a,"通信エラー","error");});
+}
+
+function defaultPayMonth(){
+  var d=new Date();d.setMonth(d.getMonth()+1); // 翌月をデフォルト
+  return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2);
+}
+
 function updateStatus(id,action){
   var a=document.getElementById("adminAlert");
-  gasGet({action:"updateStatus",username:currentUser,isAdmin:"true",id:id,action:action}).then(function(res){
+  var payMonth="";
+  if(action==="approve"){
+    var input=prompt("支払月を入力してください（例：2026-08）\n※空欄のままOKで後から設定も可能",defaultPayMonth());
+    if(input===null)return; // キャンセルなら承認自体を中止
+    payMonth=input.trim();
+  }
+  gasGet({action:"updateStatus",username:currentUser,isAdmin:"true",id:id,action:action,payMonth:payMonth}).then(function(res){
     if(res.success){showEl(a,"更新しました","success");loadAllExpenses();setTimeout(function(){a.classList.add("hidden");},3000);}
     else{showEl(a,res.error||"更新に失敗しました","error");}
   }).catch(function(){showEl(a,"通信エラー","error");});
@@ -354,7 +435,7 @@ function updateStatus(id,action){
 
 function downloadCSV(){
   if(!allExpenses.length)return;
-  var headers=["ID","申請者","申請日","発生日","金額","項目","購入先","用途","備考","ステータス","承認者","承認日","精算状況","精算日"];
+  var headers=["ID","申請者","申請日","発生日","金額","項目","購入先","用途","備考","ステータス","承認者","承認日","精算状況","精算日","支払月"];
   var rows=allExpenses.map(function(r){return headers.map(function(h){return '"'+String(r[h]||"").replace(/"/g,'""')+'"';}).join(",");});
   var csv=String.fromCharCode(65279)+headers.join(",")+String.fromCharCode(10)+rows.join(String.fromCharCode(10));
   var blob=new Blob([csv],{type:"text/csv"});
