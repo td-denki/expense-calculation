@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>経費立替管理 | 匡電気管理事務所</title>
-<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
 :root{--bg:#F7F8FA;--surface:#FFFFFF;--border:#E2E6EA;--primary:#3333AA;--primary-h:#22228A;--danger:#C81E1E;--success:#057A55;--warn:#B45309;--text:#111928;--muted:#6B7280;--radius:8px;--font:"Hiragino Sans","Meiryo",sans-serif}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -86,12 +85,6 @@ tr:hover td{background:#F9FAFB}
 <div class="formRow"><label>アカウント名</label><input type="text" id="loginUser" placeholder="氏名" autocomplete="username" autocorrect="off" autocapitalize="off" spellcheck="false"></div>
 <div class="formRow"><label>パスワード</label><input type="password" id="loginPass" placeholder="パスワード" autocomplete="current-password"></div>
 <button class="btn btn-primary btn-block mt16" id="btnLogin" onclick="doLogin()">ログイン</button>
-<div style="display:flex;align-items:center;gap:10px;margin:14px 0 0">
-<div style="flex:1;height:1px;background:var(--border)"></div>
-<span style="font-size:11px;color:var(--muted)">または</span>
-<div style="flex:1;height:1px;background:var(--border)"></div>
-</div>
-<button class="btn btn-block" id="btnLineLogin" onclick="doLineLogin()" style="background:#06C755;color:#fff;margin-top:14px">LINEでログイン</button>
 <div class="loginLinks"><button class="btn-text" onclick="showModal('changePassModal')">パスワード変更</button><button class="btn-text" onclick="showModal('resetPassModal')">パスワードを忘れた方</button></div>
 </div></div>
 
@@ -191,55 +184,7 @@ tr:hover td{background:#F9FAFB}
 
 <script>
 var GAS_URL="https://script.google.com/macros/s/AKfycbyIahK65F28eUThDjopBB_HP-ufD9rbFwzN7Axie9HdXZO3IUj_OayyfvN05Ri5_-YyZA/exec";
-var LIFF_ID="2010679196-6i5QHaAK"; // LINE DevelopersでこのアプリのLIFFを作成してIDを貼り付け
 var currentUser=null,isAdmin=false,allExpenses=[],myExpenses=[];
-var liffReady=false;
-
-// ── LIFF初期化（LINEアプリ内なら自動ログイン） ──
-(function initLiff(){
-  if(typeof liff==="undefined"||!LIFF_ID||LIFF_ID==="YOUR_LIFF_ID")return;
-  liff.init({liffId:LIFF_ID}).then(function(){
-    liffReady=true;
-    if(liff.isLoggedIn()){
-      lineAuth();
-    }
-  }).catch(function(e){console.error("LIFF init error",e);});
-})();
-
-function doLineLogin(){
-  var err=document.getElementById("loginError");
-  if(!liffReady){
-    showEl(err,"LINEログインの準備ができていません（LIFF未設定）","error");
-    return;
-  }
-  if(!liff.isLoggedIn()){
-    liff.login({redirectUri:location.href});
-    return;
-  }
-  lineAuth();
-}
-
-function lineAuth(){
-  var err=document.getElementById("loginError");
-  var btn=document.getElementById("btnLineLogin");
-  var myLineId="";
-  if(btn){btn.disabled=true;btn.textContent="LINE認証中...";}
-  liff.getProfile().then(function(profile){
-    myLineId=profile.userId;
-    return gasGet({action:"loginByLine",lineUserId:profile.userId});
-  }).then(function(res){
-    if(res.success){
-      enterApp(res.username,res.isAdmin);
-    }else{
-      showEl(err,(res.error||"LINEログインに失敗しました")+" ／ あなたのLINE ID: "+myLineId,"error");
-    }
-    if(btn){btn.disabled=false;btn.textContent="LINEでログイン";}
-  }).catch(function(e){
-    showEl(err,"LINE認証エラー: "+e.message,"error");
-    if(btn){btn.disabled=false;btn.textContent="LINEでログイン";}
-  });
-}
-
 // ── ログイン成功後の共通処理 ──
 function enterApp(username,admin){
   currentUser=username;isAdmin=admin;
@@ -429,7 +374,7 @@ function updateStatus(id,action){
     if(input===null)return; // キャンセルなら承認自体を中止
     payMonth=input.trim();
   }
-  gasGet({action:"updateStatus",username:currentUser,isAdmin:"true",id:id,action:action,payMonth:payMonth}).then(function(res){
+  gasGet({action:"updateStatus",username:currentUser,isAdmin:"true",id:id,op:action,payMonth:payMonth}).then(function(res){
     if(res.success){showEl(a,"更新しました","success");loadAllExpenses();setTimeout(function(){a.classList.add("hidden");},3000);}
     else{showEl(a,res.error||"更新に失敗しました","error");}
   }).catch(function(){showEl(a,"通信エラー","error");});
