@@ -222,14 +222,16 @@ function doLineLogin(){
 function lineAuth(){
   var err=document.getElementById("loginError");
   var btn=document.getElementById("btnLineLogin");
+  var myLineId="";
   if(btn){btn.disabled=true;btn.textContent="LINE認証中...";}
   liff.getProfile().then(function(profile){
+    myLineId=profile.userId;
     return gasGet({action:"loginByLine",lineUserId:profile.userId});
   }).then(function(res){
     if(res.success){
       enterApp(res.username,res.isAdmin);
     }else{
-      showEl(err,res.error||"LINEログインに失敗しました","error");
+      showEl(err,(res.error||"LINEログインに失敗しました")+" ／ あなたのLINE ID: "+myLineId,"error");
     }
     if(btn){btn.disabled=false;btn.textContent="LINEでログイン";}
   }).catch(function(e){
